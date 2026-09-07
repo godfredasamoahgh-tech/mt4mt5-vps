@@ -92,6 +92,8 @@ echo "[vps] URL: ${VPS_URL:-not-yet}/vnc.html  (password: from VNC_PASSWORD secr
 } > "$HOME/vps-state/boot_receipt.txt" 2>&1
 mkdir -p "$HOME/vps-state"
 cat "$HOME/vps-state/boot_receipt.txt"
+# immediate state push so the receipt + URL survive even if bg pusher hiccups
+python3 vps_state.py push-once || true
 
 echo "[vps] boot complete — window: ${RUN_MINUTES:-267}m"
 timeout "${RUN_MINUTES:-267}m" sleep infinity &
@@ -100,9 +102,19 @@ WATCH=$!
 python3 vps_state.py push &
 PUSHER=$!
 # keepalive loop: if a terminal dies mid-shift, relaunch it (self-healing)
+MT4_RELAUNCH=0; MT5_RELAUNCH=0
 while kill -0 $WATCH 2>/dev/null; do
-  pgrep -f "MetaTrader 4/terminal.exe" >/dev/null || (cd "$MT4DIR" && nohup wine terminal.exe /portable >/dev/null 2>&1 & echo "[heal] MT4 relaunched $(date -u +%T)")
-  pgrep -f "MetaTrader 5/terminal64.exe" >/dev/null || (cd "$MT5DIR" && nohup wine terminal64.exe /portable >/dev/null 2>&1 & echo "[heal] MT5 relaunched $(date -u +%T)")
+  # wine processes appear as wine64-preloader — match the exe name generically
+  if ! pgrep -f "terminal\.exe" >/dev/null; then
+    MT4_RELAUNCH=$((MT4_RELAUNCH+1))
+    (cd "$MT4DIR" && nohup wine terminal.exe /portable >/dev/null 2>&1 &)
+    echo "[heal] MT4 relaunched #${MT4_RELAUNCH} $(date -u +%T)"
+  fi
+  if ! pgrep -f "terminal64\.exe" >/dev/null; then
+    MT5_RELAUNCH=$((MT5_RELAUNCH+1))
+    (cd "$MT5DIR" && nohup wine terminal64.exe /portable >/dev/null 2>&1 &)
+    echo "[heal] MT5 relaunched #${MT5_RELAUNCH} $(date -u +%T)"
+  fi
   sleep 60
 done
 wait $WATCH

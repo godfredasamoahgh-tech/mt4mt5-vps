@@ -49,7 +49,20 @@ def iter_state_files():
             except OSError:
                 continue
 
+def ensure_state_branch():
+    try:
+        gh("GET", f"git/ref/heads/{BRANCH}")
+        return
+    except Exception:
+        pass
+    main = gh("GET", "git/ref/heads/main")["object"]["sha"]
+    c = gh("GET", f"git/commits/{main}")
+    nc = gh("POST", "git/commits", {"message": "init state branch", "tree": c["tree"]["sha"], "parents": [main]})
+    gh("POST", "git/refs", {"ref": f"refs/heads/{BRANCH}", "sha": nc["sha"]})
+    print("[state] created state branch", flush=True)
+
 def push_cycle():
+    ensure_state_branch()
     head = gh("GET", f"git/ref/heads/{BRANCH}")["object"]["sha"]
     commit = gh("GET", f"git/commits/{head}")
     base_tree = commit["tree"]["sha"]
@@ -135,3 +148,5 @@ if __name__ == "__main__":
             time.sleep(int(os.environ.get("STATE_PUSH_INTERVAL", "120")))
     elif cmd == "restore":
         restore_state()
+    elif cmd == "push-once":
+        push_cycle()
