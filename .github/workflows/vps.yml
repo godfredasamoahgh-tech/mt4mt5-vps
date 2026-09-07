@@ -1,0 +1,49 @@
+name: mt4mt5-vps
+
+on:
+  schedule:
+    - cron: "2,32 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mt4mt5-vps
+  cancel-in-progress: false
+
+jobs:
+  vps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Boot MT4+MT5 VPS (fresh install + state overlay)
+        env:
+          GH_TOKEN: ${{ secrets.VPS_PAT }}
+          VNC_PASSWORD: ${{ secrets.VNC_PASSWORD }}
+          RUN_MINUTES: "265"
+        run: |
+          chmod +x boot_vps.sh
+          bash boot_vps.sh 2>&1 | tee -a vps_boot.log
+
+      - name: Final state push (shift end)
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.VPS_PAT }}
+        run: |
+          python3 vps_state.py restore >/dev/null 2>&1 || true
+          timeout 240 python3 - <<'EOF'
+          import subprocess, os
+          # one final synchronous push cycle so the last minutes land before the runner dies
+          os.environ["STATE_PUSH_INTERVAL"] = "1"
+          import importlib.util
+          spec = importlib.util.spec_from_file_location("vps_state", "vps_state.py")
+          m = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(m)
+          try:
+              m.push_cycle()
+          except Exception as e:
+              print("final push error:", e)
+          EOF
