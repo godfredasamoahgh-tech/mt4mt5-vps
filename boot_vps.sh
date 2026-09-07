@@ -22,18 +22,34 @@ sleep 5
 
 echo "[vps] 3/8 fresh MT4 install"
 wget -q "https://download.mql5.com/cdn/web/metaquotes.software.corp/mt4/mt4setup.exe" -O /tmp/mt4setup.exe
-wine /tmp/mt4setup.exe /auto >/dev/null 2>&1 || true
-sleep 8
+# installers may open a GUI wizard (no reliable /auto) — cap at 150s; if it doesn't finish,
+# check if terminal.exe landed anyway; else extract via portable zip fallback (below)
+timeout 150 wine /tmp/mt4setup.exe /auto >/dev/null 2>&1 || true
+pkill -f mt4setup.exe 2>/dev/null || true
+sleep 3
 
 echo "[vps] 4/8 fresh MT5 install"
 wget -q "https://download.mql5.com/cdn/web/metaquotes.software.corp/mt5/mt5setup.exe" -O /tmp/mt5setup.exe
-wine /tmp/mt5setup.exe /auto >/dev/null 2>&1 || true
-sleep 8
+timeout 150 wine /tmp/mt5setup.exe /auto >/dev/null 2>&1 || true
+pkill -f mt5setup.exe 2>/dev/null || true
+sleep 3
+
+# PORTABLE FALLBACK: if installers didn't produce terminals, use MetaQuotes' portable zips
+MT4DIR="$WINEPREFIX/drive_c/Program Files (x86)/MetaTrader 4"
+MT5DIR="$WINEPREFIX/drive_c/Program Files/MetaTrader 5"
+if [ ! -f "$MT4DIR/terminal.exe" ]; then
+  echo "[vps] MT4 installer failed → portable zip"
+  wget -q "https://files.metaquotes.net/metaquotes.software.corp/mt4/mt4.zip" -O /tmp/mt4.zip || true
+  if [ -s /tmp/mt4.zip ]; then mkdir -p "$MT4DIR" && cd "$MT4DIR" && unzip -oq /tmp/mt4.zip; cd - >/dev/null; fi
+fi
+if [ ! -f "$MT5DIR/terminal64.exe" ]; then
+  echo "[vps] MT5 installer failed → portable zip"
+  wget -q "https://files.metaquotes.net/metaquotes.software.corp/mt5/mt5.zip" -O /tmp/mt5.zip || true
+  if [ -s /tmp/mt5.zip ]; then mkdir -p "$MT5DIR" && cd "$MT5DIR" && unzip -oq /tmp/mt5.zip; cd - >/dev/null; fi
+fi
 
 echo "[vps] 5/8 overlay user state (EAs, charts, logins) from git"
 # vps-state mirrors INTO the wine prefix: vps-state/mt4/... → MT4 dir, vps-state/mt5/... → MT5 dir
-MT4DIR="$WINEPREFIX/drive_c/Program Files (x86)/MetaTrader 4"
-MT5DIR="$WINEPREFIX/drive_c/Program Files/MetaTrader 5"
 mkdir -p "$MT4DIR" "$MT5DIR" "$HOME/vps-state"
 python3 vps_state.py restore
 if [ -d "$HOME/vps-state/mt4" ]; then
