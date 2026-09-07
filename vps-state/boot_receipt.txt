@@ -1,0 +1,8 @@
+=== 2026-09-07T12:38:03Z boot receipt ===
+OK  terminal.exe
+OK  terminal64.exe
+OK  Xvfb
+OK  x11vnc
+OK  websockify
+OK  cloudflared
+URL: https://coat-lowest-soft-fundamentals.trycloudflare.com
