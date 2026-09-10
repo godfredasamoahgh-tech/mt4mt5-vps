@@ -1,8 +1,8 @@
-=== 2026-09-10T04:52:33Z boot receipt ===
+=== 2026-09-10T10:43:19Z boot receipt ===
 OK  terminal.exe
 OK  terminal64.exe
 OK  Xvfb
 OK  x11vnc
 OK  websockify
 OK  cloudflared
-URL: https://thousands-princess-specializing-depth.trycloudflare.com
+URL: none
