@@ -1,8 +1,8 @@
-=== 2026-09-10T10:43:19Z boot receipt ===
+=== 2026-09-10T16:34:04Z boot receipt ===
 OK  terminal.exe
 OK  terminal64.exe
 OK  Xvfb
 OK  x11vnc
 OK  websockify
 OK  cloudflared
-URL: none
+URL: https://lodge-republic-realm-falls.trycloudflare.com
